@@ -20,6 +20,24 @@ const adapter = new BotFrameworkAdapter({
   appPassword: process.env.MICROSOFT_APP_PASSWORD
 });
 
+// Error handler for adapter
+adapter.onTurnError = async (context, error) => {
+  console.error('❌ Bot Framework Adapter Error:', error);
+  console.error('Error details:', {
+    message: error.message,
+    stack: error.stack,
+    statusCode: error.statusCode,
+    conversationId: context?.activity?.conversation?.id
+  });
+  
+  // Send a message to the user
+  try {
+    await context.sendActivity('Lo siento, ocurrió un error. Por favor intenta de nuevo.');
+  } catch (sendError) {
+    console.error('Failed to send error message:', sendError);
+  }
+};
+
 // Services - lazy initialization
 let geminiService = null;
 let ticketService = null;
