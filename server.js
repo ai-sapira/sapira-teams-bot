@@ -281,25 +281,21 @@ function getOrCreateConversation(conversationId, userId, userName, userEmail) {
 async function sendTeamsMessage(serviceUrl, conversation, recipient, text, replyToId) {
   const token = await getAccessToken();
   
-  // Construir URL correcta - usar endpoint de replies para respuestas
-  const url = replyToId 
-    ? `${serviceUrl}v3/conversations/${conversation.id}/activities/${replyToId}/replies`
-    : `${serviceUrl}v3/conversations/${conversation.id}/activities`;
+  // Usar el endpoint más simple - siempre crear una nueva actividad
+  const url = `${serviceUrl}v3/conversations/${conversation.id}/activities`;
   
   console.log('📤 Sending Teams message to:', url);
+  console.log('📋 Conversation ID:', conversation.id);
+  console.log('👤 Recipient:', recipient);
   
   const payload = {
     type: 'message',
-    text: text
-  };
-  
-  // Solo agregar from para nuevos mensajes, no para replies
-  if (!replyToId) {
-    payload.from = {
+    text: text,
+    from: {
       id: `28:${process.env.MICROSOFT_APP_ID}`,
       name: 'Sapira Soporte'
-    };
-    payload.recipient = recipient;
+    },
+    recipient: recipient
   }
   
   const response = await fetch(url, {
