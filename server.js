@@ -1,8 +1,6 @@
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
-const jwt = require('jsonwebtoken');
-const jwksClient = require('jwks-client');
 
 // Import bot logic
 const { GeminiService } = require('./lib/gemini-service');
