@@ -1,21 +1,21 @@
 {
   "$schema": "https://developer.microsoft.com/json-schemas/teams/v1.16/MicrosoftTeams.schema.json",
   "manifestVersion": "1.16",
-  "version": "1.0.4",
+  "version": "1.0.1",
   "id": "1e9ed32d-0951-4413-ac8f-002b88f62eac",
-  "packageName": "com.sapira.soporte.minimal",
+  "packageName": "com.sapira.soporte",
   "name": {
-    "short": "Sapira Bot",
-    "full": "Sapira Support Bot"
+    "short": "Sapira Soporte",
+    "full": "Sapira - Asistente de Soporte Técnico con IA"
   },
   "description": {
-    "short": "AI Support Assistant",
-    "full": "AI assistant for technical support ticket creation"
+    "short": "Crea tickets hablando con Sapira",
+    "full": "Asistente de IA que te ayuda a crear tickets de soporte de forma conversacional. Analiza tus problemas técnicos y genera tickets automáticamente para el equipo de soporte."
   },
   "developer": {
     "name": "Sapira",
     "websiteUrl": "https://sapira-teams-bot.onrender.com",
-    "privacyUrl": "https://sapira-teams-bot.onrender.com", 
+    "privacyUrl": "https://sapira-teams-bot.onrender.com",
     "termsOfUseUrl": "https://sapira-teams-bot.onrender.com"
   },
   "icons": {
@@ -30,7 +30,8 @@
     }
   ],
   "permissions": [
-    "identity"
+    "identity",
+    "messageTeamMembers"
   ],
   "validDomains": [
     "sapira-teams-bot.onrender.com"

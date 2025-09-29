@@ -1,6 +1,8 @@
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
+const jwt = require('jsonwebtoken');
+const jwksClient = require('jwks-client');
 
 // Import bot logic
 const { GeminiService } = require('./lib/gemini-service');
@@ -103,9 +105,16 @@ app.post('/api/messages', async (req, res) => {
 
     // Validar que el mensaje viene de Teams real (no de pruebas)
     const authHeader = req.headers.authorization;
-    if (activity.serviceUrl && activity.serviceUrl !== 'https://test.service.url' && !authHeader) {
+    const isRealTeams = activity.serviceUrl && activity.serviceUrl !== 'https://test.service.url';
+    
+    if (isRealTeams && !authHeader) {
       console.error('❌ Missing authorization header from Teams');
       return res.status(401).json({ error: 'Unauthorized - Missing auth header' });
+    }
+    
+    // Log para debug
+    if (isRealTeams) {
+      console.log('🔐 Teams auth header present:', !!authHeader);
     }
 
     // Solo procesar mensajes de texto
@@ -270,9 +279,8 @@ function getOrCreateConversation(conversationId, userId, userName, userEmail) {
 async function sendTeamsMessage(serviceUrl, conversation, recipient, text, replyToId) {
   const token = await getAccessToken();
   
-  const url = replyToId 
-    ? `${serviceUrl}v3/conversations/${conversation.id}/activities/${replyToId}`
-    : `${serviceUrl}v3/conversations/${conversation.id}/activities`;
+  // Construir URL correcta para responder
+  const url = `${serviceUrl}v3/conversations/${conversation.id}/activities`;
   
   console.log('📤 Sending Teams message to:', url);
   
@@ -283,7 +291,8 @@ async function sendTeamsMessage(serviceUrl, conversation, recipient, text, reply
       id: `28:${process.env.MICROSOFT_APP_ID}`,
       name: 'Sapira Soporte'
     },
-    ...(replyToId ? {} : { recipient: recipient })
+    recipient: recipient,
+    replyToId: replyToId
   };
   
   const response = await fetch(url, {
