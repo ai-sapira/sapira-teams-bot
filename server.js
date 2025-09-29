@@ -68,6 +68,25 @@ app.get('/api/messages', (req, res) => {
   });
 });
 
+// Endpoint para diagnosticar requests de Teams
+app.all('/api/debug', (req, res) => {
+  console.log('🔍 DEBUG Request:', {
+    method: req.method,
+    headers: req.headers,
+    body: req.body,
+    query: req.query,
+    timestamp: new Date().toISOString()
+  });
+  
+  res.json({
+    method: req.method,
+    headers: req.headers,
+    body: req.body,
+    received: true,
+    timestamp: new Date().toISOString()
+  });
+});
+
 // Teams bot endpoint
 app.post('/api/messages', async (req, res) => {
   let activity;
@@ -78,8 +97,16 @@ app.post('/api/messages', async (req, res) => {
       type: activity.type,
       text: activity.text,
       from: activity.from?.name,
-      conversationId: activity.conversation?.id
+      conversationId: activity.conversation?.id,
+      serviceUrl: activity.serviceUrl
     });
+
+    // Validar que el mensaje viene de Teams real (no de pruebas)
+    const authHeader = req.headers.authorization;
+    if (activity.serviceUrl && activity.serviceUrl !== 'https://test.service.url' && !authHeader) {
+      console.error('❌ Missing authorization header from Teams');
+      return res.status(401).json({ error: 'Unauthorized - Missing auth header' });
+    }
 
     // Solo procesar mensajes de texto
     if (activity.type !== 'message' || !activity.text) {
