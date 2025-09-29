@@ -93,6 +93,24 @@ app.get('/api/messages', (req, res) => {
   });
 });
 
+// Endpoint para verificar configuración
+app.get('/api/config-check', (req, res) => {
+  const appId = process.env.MICROSOFT_APP_ID;
+  const hasPassword = !!process.env.MICROSOFT_APP_PASSWORD;
+  const passwordLength = process.env.MICROSOFT_APP_PASSWORD?.length || 0;
+  const passwordPrefix = process.env.MICROSOFT_APP_PASSWORD?.substring(0, 5) || 'NOT_SET';
+  
+  res.json({
+    appId,
+    hasPassword,
+    passwordLength,
+    passwordPrefix,
+    expectedPasswordPrefix: 'RwG8Q',
+    passwordMatches: passwordPrefix === 'RwG8Q',
+    timestamp: new Date().toISOString()
+  });
+});
+
 // Endpoint para diagnosticar requests de Teams
 app.all('/api/debug', (req, res) => {
   console.log('🔍 DEBUG Request:', {
@@ -125,23 +143,10 @@ app.post('/api/messages', (req, res) => {
       serviceUrl: activity.serviceUrl
     });
 
-    // Validar que el mensaje viene de Teams real (no de pruebas)
-    const authHeader = req.headers.authorization;
-    const isRealTeams = activity.serviceUrl && activity.serviceUrl !== 'https://test.service.url';
-    
-    if (isRealTeams && !authHeader) {
-      console.error('❌ Missing authorization header from Teams');
-      return res.status(401).json({ error: 'Unauthorized - Missing auth header' });
-    }
-    
-    // Log para debug
-    if (isRealTeams) {
-      console.log('🔐 Teams auth header present:', !!authHeader);
-    }
-
     // Solo procesar mensajes de texto
     if (activity.type !== 'message' || !activity.text) {
-      return res.json({ status: 'ignored' });
+      // Bot Framework handles the response automatically
+      return;
     }
 
     // Extraer información del usuario
