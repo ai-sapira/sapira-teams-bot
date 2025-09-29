@@ -220,7 +220,11 @@ El equipo de soporte lo revisará y te contactará si necesita información adic
         messageSent = true;
       } catch (sendError) {
         console.log('⚠️ Could not send message to Teams, but conversation processed:', sendError.message);
+        console.log('💡 Response would have been:', responseText);
         // No lanzar error - el mensaje se procesó correctamente
+        
+        // Guardar la respuesta que habríamos enviado
+        conversation.addMessage(`[UNSENT] ${responseText}`, 'bot');
       }
     } else {
       console.log('🧪 Test mode - response would be:', responseText);
@@ -279,21 +283,26 @@ function getOrCreateConversation(conversationId, userId, userName, userEmail) {
 async function sendTeamsMessage(serviceUrl, conversation, recipient, text, replyToId) {
   const token = await getAccessToken();
   
-  // Construir URL correcta para responder
-  const url = `${serviceUrl}v3/conversations/${conversation.id}/activities`;
+  // Construir URL correcta - usar endpoint de replies para respuestas
+  const url = replyToId 
+    ? `${serviceUrl}v3/conversations/${conversation.id}/activities/${replyToId}/replies`
+    : `${serviceUrl}v3/conversations/${conversation.id}/activities`;
   
   console.log('📤 Sending Teams message to:', url);
   
   const payload = {
     type: 'message',
-    text: text,
-    from: {
+    text: text
+  };
+  
+  // Solo agregar from para nuevos mensajes, no para replies
+  if (!replyToId) {
+    payload.from = {
       id: `28:${process.env.MICROSOFT_APP_ID}`,
       name: 'Sapira Soporte'
-    },
-    recipient: recipient,
-    replyToId: replyToId
-  };
+    };
+    payload.recipient = recipient;
+  }
   
   const response = await fetch(url, {
     method: 'POST',
