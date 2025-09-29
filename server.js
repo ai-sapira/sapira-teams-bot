@@ -1,6 +1,7 @@
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
+const { BotFrameworkAdapter, TurnContext } = require('botbuilder');
 
 // Import bot logic
 const { GeminiService } = require('./lib/gemini-service');
@@ -12,6 +13,12 @@ const port = process.env.PORT || 3000;
 // Middleware
 app.use(cors());
 app.use(express.json());
+
+// Create Bot Framework adapter
+const adapter = new BotFrameworkAdapter({
+  appId: process.env.MICROSOFT_APP_ID,
+  appPassword: process.env.MICROSOFT_APP_PASSWORD
+});
 
 // Services - lazy initialization
 let geminiService = null;
@@ -87,12 +94,11 @@ app.all('/api/debug', (req, res) => {
   });
 });
 
-// Teams bot endpoint
-app.post('/api/messages', async (req, res) => {
-  let activity;
-  
-  try {
-    activity = req.body;
+// Teams bot endpoint - using Bot Framework adapter
+app.post('/api/messages', (req, res) => {
+  adapter.processActivity(req, res, async (context) => {
+    try {
+    const activity = context.activity;
     console.log('📩 Received Teams message:', {
       type: activity.type,
       text: activity.text,
@@ -203,61 +209,24 @@ El equipo de soporte lo revisará y te contactará si necesita información adic
     conversation.addMessage(responseText, 'bot');
     console.log('🤖 Bot response prepared');
 
-    // Intentar responder a Teams
-    let messageSent = false;
-    if (activity.serviceUrl && activity.serviceUrl !== 'https://test.service.url') {
-      try {
-        await sendTeamsMessage(
-          activity.serviceUrl,
-          activity.conversation,
-          activity.from,
-          responseText,
-          activity.id
-        );
-        console.log('✅ Response sent to Teams');
-        messageSent = true;
-      } catch (sendError) {
-        console.log('⚠️ Could not send message to Teams, but conversation processed:', sendError.message);
-        console.log('💡 Response would have been:', responseText);
-        // No lanzar error - el mensaje se procesó correctamente
-        
-        // Guardar la respuesta que habríamos enviado
-        conversation.addMessage(`[UNSENT] ${responseText}`, 'bot');
-      }
-    } else {
-      console.log('🧪 Test mode - response would be:', responseText);
-    }
-
-    res.json({ 
-      status: 'ok', 
-      sent: messageSent,
-      response: responseText,
-      processed: true
-    });
+    // Responder usando Bot Framework context
+    await context.sendActivity({ type: 'message', text: responseText });
+    console.log('✅ Response sent to Teams via Bot Framework');
 
   } catch (error) {
     console.error('❌ Bot error:', error);
     
-    // Respuesta de fallback
-    if (activity) {
-      try {
-        await sendTeamsMessage(
-          activity.serviceUrl,
-          activity.conversation,
-          activity.from,
-          'Lo siento, hubo un error interno. Por favor inténtalo de nuevo.',
-          activity.id
-        );
-      } catch (fallbackError) {
-        console.error('Failed to send fallback message:', fallbackError);
-      }
+    // Intentar enviar mensaje de error
+    try {
+      await context.sendActivity({ 
+        type: 'message', 
+        text: 'Lo siento, hubo un error interno. Por favor inténtalo de nuevo.' 
+      });
+    } catch (fallbackError) {
+      console.error('Failed to send fallback message:', fallbackError);
     }
-    
-    res.status(500).json({
-      error: 'Bot processing failed',
-      message: error instanceof Error ? error.message : 'Unknown error'
-    });
   }
+  });
 });
 
 // Helper functions
@@ -278,82 +247,8 @@ function getOrCreateConversation(conversationId, userId, userName, userEmail) {
   return conversations.get(key);
 }
 
-async function sendTeamsMessage(serviceUrl, conversation, recipient, text, replyToId) {
-  const token = await getAccessToken();
-  
-  // Usar el endpoint más simple - siempre crear una nueva actividad
-  const url = `${serviceUrl}v3/conversations/${conversation.id}/activities`;
-  
-  console.log('📤 Sending Teams message to:', url);
-  console.log('📋 Conversation ID:', conversation.id);
-  console.log('👤 Recipient:', recipient);
-  
-  const payload = {
-    type: 'message',
-    text: text,
-    from: {
-      id: `28:${process.env.MICROSOFT_APP_ID}`,
-      name: 'Sapira Soporte'
-    },
-    recipient: recipient
-  }
-  
-  const response = await fetch(url, {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${token}`,
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify(payload)
-  });
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    console.error('❌ Failed to send Teams message:', {
-      status: response.status,
-      statusText: response.statusText,
-      error: errorText,
-      url,
-      payload
-    });
-    throw new Error(`Failed to send Teams message: ${response.status} - ${errorText}`);
-  }
-
-  console.log('✅ Teams message sent successfully');
-  return response.json();
-}
-
-async function getAccessToken() {
-  const tokenUrl = 'https://login.microsoftonline.com/botframework.com/oauth2/v2.0/token';
-  
-  console.log('🔑 Requesting access token with:', {
-    client_id: process.env.MICROSOFT_APP_ID,
-    has_secret: !!process.env.MICROSOFT_APP_PASSWORD
-  });
-  
-  const response = await fetch(tokenUrl, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/x-www-form-urlencoded'
-    },
-    body: new URLSearchParams({
-      grant_type: 'client_credentials',
-      client_id: process.env.MICROSOFT_APP_ID,
-      client_secret: process.env.MICROSOFT_APP_PASSWORD,
-      scope: 'https://api.botframework.com/.default'
-    })
-  });
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    console.error('❌ Failed to get access token:', response.status, errorText);
-    throw new Error(`Failed to get access token: ${response.status} - ${errorText}`);
-  }
-
-  const data = await response.json();
-  console.log('✅ Access token obtained successfully');
-  return data.access_token;
-}
+// Las funciones sendTeamsMessage y getAccessToken ya no son necesarias
+// El Bot Framework adapter maneja todo automáticamente
 
 app.listen(port, () => {
   console.log(`🤖 Sapira Teams Bot running on port ${port}`);
