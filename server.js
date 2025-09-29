@@ -169,17 +169,25 @@ El equipo de soporte lo revisará y te contactará si necesita información adic
     conversation.addMessage(responseText, 'bot');
     console.log('🤖 Bot response prepared');
 
-    // Responder a Teams
-    await sendTeamsMessage(
-      activity.serviceUrl,
-      activity.conversation,
-      activity.from,
-      responseText,
-      activity.id
-    );
+    // Responder a Teams (solo si viene de Teams real)
+    if (activity.serviceUrl && activity.serviceUrl !== 'https://test.service.url') {
+      await sendTeamsMessage(
+        activity.serviceUrl,
+        activity.conversation,
+        activity.from,
+        responseText,
+        activity.id
+      );
+      console.log('✅ Response sent to Teams');
+    } else {
+      console.log('🧪 Test mode - response would be:', responseText);
+    }
 
-    console.log('✅ Response sent to Teams');
-    res.json({ status: 'ok', sent: true });
+    res.json({ 
+      status: 'ok', 
+      sent: !!activity.serviceUrl && activity.serviceUrl !== 'https://test.service.url',
+      response: responseText 
+    });
 
   } catch (error) {
     console.error('❌ Bot error:', error);

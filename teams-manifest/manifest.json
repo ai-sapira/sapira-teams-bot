@@ -1,7 +1,7 @@
 {
   "$schema": "https://developer.microsoft.com/json-schemas/teams/v1.16/MicrosoftTeams.schema.json",
   "manifestVersion": "1.16",
-  "version": "1.0.0",
+  "version": "1.0.2",
   "id": "1e9ed32d-0951-4413-ac8f-002b88f62eac",
   "packageName": "com.sapira.soporte",
   "name": {
@@ -14,9 +14,9 @@
   },
   "developer": {
     "name": "Sapira",
-    "websiteUrl": "https://github.com",
-    "privacyUrl": "https://github.com",
-    "termsOfUseUrl": "https://github.com"
+    "websiteUrl": "https://sapira-teams-bot.onrender.com",
+    "privacyUrl": "https://sapira-teams-bot.onrender.com",
+    "termsOfUseUrl": "https://sapira-teams-bot.onrender.com"
   },
   "icons": {
     "color": "color-icon.png",
@@ -26,7 +26,7 @@
   "bots": [
     {
       "botId": "1e9ed32d-0951-4413-ac8f-002b88f62eac",
-      "scopes": ["personal"],
+      "scopes": ["personal", "team", "groupchat"],
       "isNotificationOnly": false,
       "supportsFiles": false
     }
@@ -36,6 +36,6 @@
     "messageTeamMembers"
   ],
   "validDomains": [
-    "756b4214ed30.ngrok-free.app"
+    "sapira-teams-bot.onrender.com"
   ]
 }
