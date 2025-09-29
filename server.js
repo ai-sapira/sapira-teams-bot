@@ -196,24 +196,32 @@ El equipo de soporte lo revisará y te contactará si necesita información adic
     conversation.addMessage(responseText, 'bot');
     console.log('🤖 Bot response prepared');
 
-    // Responder a Teams (solo si viene de Teams real)
+    // Intentar responder a Teams
+    let messageSent = false;
     if (activity.serviceUrl && activity.serviceUrl !== 'https://test.service.url') {
-      await sendTeamsMessage(
-        activity.serviceUrl,
-        activity.conversation,
-        activity.from,
-        responseText,
-        activity.id
-      );
-      console.log('✅ Response sent to Teams');
+      try {
+        await sendTeamsMessage(
+          activity.serviceUrl,
+          activity.conversation,
+          activity.from,
+          responseText,
+          activity.id
+        );
+        console.log('✅ Response sent to Teams');
+        messageSent = true;
+      } catch (sendError) {
+        console.log('⚠️ Could not send message to Teams, but conversation processed:', sendError.message);
+        // No lanzar error - el mensaje se procesó correctamente
+      }
     } else {
       console.log('🧪 Test mode - response would be:', responseText);
     }
 
     res.json({ 
       status: 'ok', 
-      sent: !!activity.serviceUrl && activity.serviceUrl !== 'https://test.service.url',
-      response: responseText 
+      sent: messageSent,
+      response: responseText,
+      processed: true
     });
 
   } catch (error) {
