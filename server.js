@@ -14,10 +14,18 @@ const port = process.env.PORT || 3000;
 app.use(cors());
 app.use(express.json());
 
-// Create Bot Framework adapter
+// Create Bot Framework adapter with explicit authentication configuration
 const adapter = new BotFrameworkAdapter({
   appId: process.env.MICROSOFT_APP_ID,
-  appPassword: process.env.MICROSOFT_APP_PASSWORD
+  appPassword: process.env.MICROSOFT_APP_PASSWORD,
+  channelAuthTenant: process.env.MICROSOFT_APP_TENANT_ID || '43b89735-ea65-4f21-a5a3-8f552126a8f9'
+});
+
+// Log adapter configuration
+console.log('🔧 Bot Framework Adapter initialized:', {
+  appId: process.env.MICROSOFT_APP_ID,
+  hasPassword: !!process.env.MICROSOFT_APP_PASSWORD,
+  tenant: process.env.MICROSOFT_APP_TENANT_ID || '43b89735-ea65-4f21-a5a3-8f552126a8f9'
 });
 
 // Error handler for adapter
