@@ -1,0 +1,438 @@
+import {
+  TeamsActivityHandler,
+  TurnContext,
+  CardFactory,
+  MessageFactory,
+  ActivityHandler,
+  ConversationState,
+  UserState,
+  MemoryStorage,
+  Activity,
+  ChannelInfo
+} from 'botbuilder';
+
+import { GeminiService } from './gemini.service';
+import { conversationService, conversationReferenceService } from './conversation.service';
+import { AdaptiveCardsService } from './adaptive-cards';
+import { TicketCreationService } from './ticket-creation.service';
+import type { ConversationManager, ConversationReference } from './types';
+
+/**
+ * Main Teams Bot class - handles all interactions with Microsoft Teams
+ */
+export class SapiraTeamsBot extends TeamsActivityHandler {
+  private geminiService: GeminiService;
+  private ticketService: TicketCreationService;
+
+  constructor() {
+    super();
+
+    // Initialize services
+    this.geminiService = new GeminiService();
+    this.ticketService = new TicketCreationService();
+
+    // Handle incoming messages
+    this.onMessage(async (context, next) => {
+      await this.handleMessage(context);
+      await next();
+    });
+
+    // Handle adaptive card submissions (button clicks)
+    this.onInvokeActivity(async (context, next) => {
+      if (context.activity.name === 'adaptiveCard/action') {
+        await this.handleAdaptiveCardAction(context);
+      }
+      await next();
+    });
+
+    // Handle members added (new users)
+    this.onMembersAdded(async (context, next) => {
+      await this.handleMembersAdded(context);
+      await next();
+    });
+
+    // Store conversation references for proactive messaging
+    this.onConversationUpdate(async (context, next) => {
+      await this.storeConversationReference(context);
+      await next();
+    });
+  }
+
+  /**
+   * Handles incoming text messages from users
+   */
+  private async handleMessage(context: TurnContext): Promise<void> {
+    try {
+      const activity = context.activity;
+      const userText = activity.text?.trim() || '';
+      
+      // Skip if empty message
+      if (!userText) {
+        return;
+      }
+
+      // Get user and conversation info
+      const userId = activity.from.id;
+      const userName = activity.from.name || 'Usuario';
+      const userEmail = activity.from.aadObjectId; // Azure AD object ID
+      const conversationId = activity.conversation.id;
+
+      // Get or create conversation
+      const conversation = conversationService.getOrCreateConversation(
+        conversationId,
+        userId,
+        userName,
+        userEmail
+      );
+
+      // Add user message to conversation
+      conversation.addMessage(userText, 'user');
+
+      // Store conversation reference for proactive messaging
+      await this.storeConversationReference(context);
+
+      // Handle based on conversation state
+      await this.processConversationState(context, conversation);
+
+    } catch (error) {
+      console.error('Error handling message:', error);
+      await context.sendActivity('Lo siento, hubo un error procesando tu mensaje. Por favor inténtalo de nuevo.');
+    }
+  }
+
+  /**
+   * Processes conversation based on current state
+   */
+  private async processConversationState(
+    context: TurnContext,
+    conversation: ConversationManager
+  ): Promise<void> {
+    
+    switch (conversation.state) {
+      case 'initial':
+        await this.handleInitialMessage(context, conversation);
+        break;
+
+      case 'gathering_info':
+        await this.handleInfoGathering(context, conversation);
+        break;
+
+      case 'awaiting_confirmation':
+        await this.handleConfirmationResponse(context, conversation);
+        break;
+
+      default:
+        // Reset to gathering info if in unknown state
+        conversation.setState('gathering_info');
+        await this.handleInfoGathering(context, conversation);
+        break;
+    }
+
+    // Update conversation in storage
+    conversationService.updateConversation(conversation);
+  }
+
+  /**
+   * Handles the first message from a user
+   */
+  private async handleInitialMessage(
+    context: TurnContext,
+    conversation: ConversationManager
+  ): Promise<void> {
+    
+    // Send welcome message
+    const welcomeCard = AdaptiveCardsService.createWelcomeCard();
+    await context.sendActivity(MessageFactory.attachment(welcomeCard));
+
+    // Start gathering information
+    conversation.setState('gathering_info');
+    
+    // Get initial response from Gemini
+    const response = await this.geminiService.continueConversation(conversation);
+    conversation.addMessage(response, 'bot');
+    
+    await context.sendActivity(response);
+  }
+
+  /**
+   * Handles information gathering phase
+   */
+  private async handleInfoGathering(
+    context: TurnContext,
+    conversation: ConversationManager
+  ): Promise<void> {
+    
+    // Check if we have enough information to create ticket
+    const shouldCreateTicket = await this.geminiService.shouldCreateTicket(conversation);
+    
+    if (shouldCreateTicket) {
+      // Generate ticket proposal
+      const proposal = await this.geminiService.generateTicketProposal(conversation);
+      conversation.setTicketProposal(proposal);
+      
+      // Send proposal card
+      const proposalCard = AdaptiveCardsService.createTicketProposalCard(
+        proposal,
+        conversation.id
+      );
+      
+      await context.sendActivity(MessageFactory.attachment(proposalCard));
+      
+      // Also send a text message
+      await context.sendActivity(
+        'He preparado un resumen del problema. ¿Te parece correcto el ticket propuesto?'
+      );
+      
+    } else {
+      // Continue asking questions
+      const response = await this.geminiService.continueConversation(conversation);
+      conversation.addMessage(response, 'bot');
+      
+      await context.sendActivity(response);
+    }
+  }
+
+  /**
+   * Handles user response to ticket confirmation
+   */
+  private async handleConfirmationResponse(
+    context: TurnContext,
+    conversation: ConversationManager
+  ): Promise<void> {
+    
+    if (!conversation.ticketProposal) {
+      // Something went wrong, restart gathering info
+      conversation.setState('gathering_info');
+      await context.sendActivity('Lo siento, hubo un problema. Empecemos de nuevo. ¿Cuál es el problema que estás experimentando?');
+      return;
+    }
+
+    const userResponse = conversation.getLastUserMessage();
+    
+    // Analyze user feedback
+    const feedback = await this.geminiService.analyzeTicketFeedback(
+      userResponse,
+      conversation.ticketProposal
+    );
+
+    switch (feedback.action) {
+      case 'confirm':
+        await this.createTicket(context, conversation);
+        break;
+
+      case 'modify':
+        if (feedback.modifications) {
+          // Apply modifications
+          Object.assign(conversation.ticketProposal, feedback.modifications);
+          
+          // Show updated proposal
+          const updatedCard = AdaptiveCardsService.createTicketProposalCard(
+            conversation.ticketProposal,
+            conversation.id
+          );
+          await context.sendActivity(MessageFactory.attachment(updatedCard));
+        }
+        
+        if (feedback.followUpQuestion) {
+          conversation.addMessage(feedback.followUpQuestion, 'bot');
+          await context.sendActivity(feedback.followUpQuestion);
+        }
+        break;
+
+      case 'cancel':
+        conversation.setState('completed');
+        await context.sendActivity(
+          'Entendido, no se creará el ticket. Si necesitas ayuda en el futuro, no dudes en escribirme.'
+        );
+        
+        // Remove conversation after delay
+        setTimeout(() => {
+          conversationService.removeConversation(conversation.id, conversation.userId);
+        }, 5000);
+        break;
+    }
+  }
+
+  /**
+   * Handles adaptive card button actions
+   */
+  private async handleAdaptiveCardAction(context: TurnContext): Promise<void> {
+    try {
+      const action = context.activity.value;
+      
+      if (!action || !action.action) {
+        return;
+      }
+
+      const conversationId = action.conversation_id;
+      const userId = context.activity.from.id;
+      
+      const conversation = conversationService.getConversation(conversationId, userId);
+      if (!conversation) {
+        await context.sendActivity('Lo siento, no pude encontrar la conversación. Por favor, inicia una nueva.');
+        return;
+      }
+
+      switch (action.action) {
+        case 'confirm_ticket':
+          await this.createTicket(context, conversation);
+          break;
+
+        case 'modify_ticket':
+          conversation.setState('awaiting_confirmation');
+          conversation.addMessage('Quiero hacer cambios al ticket', 'user');
+          await context.sendActivity('¿Qué te gustaría cambiar del ticket propuesto?');
+          break;
+
+        case 'cancel_ticket':
+          conversation.setState('completed');
+          await context.sendActivity('Entendido, no se creará el ticket. ¡Que tengas un buen día!');
+          
+          setTimeout(() => {
+            conversationService.removeConversation(conversation.id, conversation.userId);
+          }, 5000);
+          break;
+
+        case 'retry_ticket_creation':
+          if (conversation.ticketProposal) {
+            await this.createTicket(context, conversation);
+          }
+          break;
+      }
+
+      // Update conversation
+      conversationService.updateConversation(conversation);
+
+    } catch (error) {
+      console.error('Error handling adaptive card action:', error);
+      await context.sendActivity('Hubo un error procesando tu acción. Por favor inténtalo de nuevo.');
+    }
+  }
+
+  /**
+   * Creates ticket using the ticket service
+   */
+  private async createTicket(
+    context: TurnContext,
+    conversation: ConversationManager
+  ): Promise<void> {
+    try {
+      if (!conversation.ticketProposal) {
+        throw new Error('No ticket proposal found');
+      }
+
+      conversation.setState('creating_ticket');
+      await context.sendActivity('Creando tu ticket... ⏳');
+
+      // Create ticket
+      const ticketResult = await this.ticketService.createTicketFromConversation(
+        conversation,
+        conversation.ticketProposal
+      );
+
+      // Send success card
+      const successCard = AdaptiveCardsService.createTicketCreatedCard(
+        ticketResult.ticket_key,
+        ticketResult.ticket_url,
+        conversation.ticketProposal.title
+      );
+
+      await context.sendActivity(MessageFactory.attachment(successCard));
+      
+      // Send confirmation message
+      await context.sendActivity(
+        `🎉 ¡Perfecto! Tu ticket **${ticketResult.ticket_key}** ha sido creado exitosamente.\n\n` +
+        `El equipo de soporte lo revisará y te contactará si necesita información adicional.`
+      );
+
+      // Mark conversation as completed
+      conversation.setState('completed');
+
+      // Clean up conversation after delay
+      setTimeout(() => {
+        conversationService.removeConversation(conversation.id, conversation.userId);
+      }, 30000); // 30 seconds
+
+    } catch (error) {
+      console.error('Error creating ticket:', error);
+      
+      const errorCard = AdaptiveCardsService.createErrorCard(
+        error instanceof Error ? error.message : 'Error desconocido'
+      );
+      
+      await context.sendActivity(MessageFactory.attachment(errorCard));
+      
+      // Reset to awaiting confirmation so user can try again
+      conversation.setState('awaiting_confirmation');
+    }
+  }
+
+  /**
+   * Handles new members added to conversation
+   */
+  private async handleMembersAdded(context: TurnContext): Promise<void> {
+    const membersAdded = context.activity.membersAdded;
+    
+    for (const member of membersAdded || []) {
+      if (member.id !== context.activity.recipient.id) {
+        // New user joined, send welcome
+        const welcomeCard = AdaptiveCardsService.createWelcomeCard();
+        await context.sendActivity(MessageFactory.attachment(welcomeCard));
+        
+        await context.sendActivity(
+          '¡Hola! Soy Sapira, tu asistente de soporte. ¿En qué puedo ayudarte hoy?'
+        );
+      }
+    }
+  }
+
+  /**
+   * Stores conversation reference for proactive messaging
+   */
+  private async storeConversationReference(context: TurnContext): Promise<void> {
+    const conversationReference: ConversationReference = {
+      user: {
+        id: context.activity.from.id,
+        name: context.activity.from.name || 'Usuario',
+        aadObjectId: context.activity.from.aadObjectId
+      },
+      bot: {
+        id: context.activity.recipient.id,
+        name: context.activity.recipient.name || 'Sapira'
+      },
+      conversation: {
+        id: context.activity.conversation.id,
+        isGroup: context.activity.conversation.isGroup,
+        conversationType: context.activity.conversation.conversationType,
+        tenantId: context.activity.conversation.tenantId
+      },
+      channelId: context.activity.channelId,
+      serviceUrl: context.activity.serviceUrl
+    };
+
+    conversationReferenceService.storeReference(
+      context.activity.conversation.id,
+      context.activity.from.id,
+      conversationReference
+    );
+  }
+
+  /**
+   * Sends a proactive message to a user (for future use)
+   */
+  async sendProactiveMessage(
+    conversationId: string,
+    userId: string,
+    message: string | any
+  ): Promise<void> {
+    const reference = conversationReferenceService.getReference(conversationId, userId);
+    
+    if (!reference) {
+      throw new Error('Conversation reference not found');
+    }
+
+    // This would be implemented with adapter.continueConversation()
+    // For now, just log it
+    console.log('Would send proactive message:', { conversationId, userId, message });
+  }
+}

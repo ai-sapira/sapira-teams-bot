@@ -1,0 +1,41 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/teams/v1.16/MicrosoftTeams.schema.json",
+  "manifestVersion": "1.16",
+  "version": "1.0.0",
+  "id": "1e9ed32d-0951-4413-ac8f-002b88f62eac",
+  "packageName": "com.sapira.soporte",
+  "name": {
+    "short": "Sapira Soporte",
+    "full": "Sapira - Asistente de Soporte Técnico con IA"
+  },
+  "description": {
+    "short": "Crea tickets hablando con Sapira",
+    "full": "Asistente de IA que te ayuda a crear tickets de soporte de forma conversacional. Analiza tus problemas técnicos y genera tickets automáticamente para el equipo de soporte."
+  },
+  "developer": {
+    "name": "Sapira",
+    "websiteUrl": "https://github.com",
+    "privacyUrl": "https://github.com",
+    "termsOfUseUrl": "https://github.com"
+  },
+  "icons": {
+    "color": "color-icon.png",
+    "outline": "outline-icon.png"
+  },
+  "accentColor": "#0078D4",
+  "bots": [
+    {
+      "botId": "1e9ed32d-0951-4413-ac8f-002b88f62eac",
+      "scopes": ["personal"],
+      "isNotificationOnly": false,
+      "supportsFiles": false
+    }
+  ],
+  "permissions": [
+    "identity",
+    "messageTeamMembers"
+  ],
+  "validDomains": [
+    "756b4214ed30.ngrok-free.app"
+  ]
+}
