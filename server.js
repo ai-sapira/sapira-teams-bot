@@ -303,10 +303,72 @@ function getOrCreateConversation(conversationId, userId, userName, userEmail) {
 // Las funciones sendTeamsMessage y getAccessToken ya no son necesarias
 // El Bot Framework adapter maneja todo automáticamente
 
+// Proactive messaging endpoint
+app.post('/api/proactive-message', async (req, res) => {
+  try {
+    const { teams_context, message } = req.body;
+    
+    if (!teams_context || !message) {
+      return res.status(400).json({ 
+        error: 'Missing required fields: teams_context and message' 
+      });
+    }
+
+    // Build conversation reference from teams_context
+    const conversationReference = {
+      serviceUrl: teams_context.service_url,
+      channelId: teams_context.channel_id,
+      conversation: {
+        id: teams_context.conversation.id,
+        isGroup: teams_context.conversation.isGroup,
+        conversationType: teams_context.conversation.conversationType,
+        tenantId: teams_context.conversation.tenantId || teams_context.tenant_id
+      },
+      bot: {
+        id: teams_context.bot.id,
+        name: teams_context.bot.name
+      },
+      user: {
+        id: teams_context.user.id,
+        name: teams_context.user.name,
+        aadObjectId: teams_context.user.aadObjectId
+      }
+    };
+
+    console.log('📤 Sending proactive message:', {
+      conversationId: conversationReference.conversation.id,
+      messagePreview: message.substring(0, 50) + '...'
+    });
+
+    // Use Bot Framework adapter to send proactive message
+    await adapter.continueConversation(conversationReference, async (turnContext) => {
+      await turnContext.sendActivity({ 
+        type: 'message', 
+        text: message 
+      });
+    });
+
+    console.log('✅ Proactive message sent successfully');
+    
+    res.json({ 
+      success: true, 
+      message: 'Proactive message sent successfully' 
+    });
+
+  } catch (error) {
+    console.error('❌ Error sending proactive message:', error);
+    res.status(500).json({ 
+      error: 'Failed to send proactive message',
+      details: error.message 
+    });
+  }
+});
+
 app.listen(port, () => {
   console.log(`🤖 Sapira Teams Bot running on port ${port}`);
   console.log(`📋 Health check: http://localhost:${port}/health`);
   console.log(`🔗 Teams endpoint: http://localhost:${port}/api/messages`);
+  console.log(`📤 Proactive messaging: http://localhost:${port}/api/proactive-message`);
 });
 
 module.exports = app;
