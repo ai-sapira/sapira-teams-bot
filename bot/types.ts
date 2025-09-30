@@ -40,7 +40,12 @@ export type ConversationState =
 export interface TicketProposal {
   title: string;
   description: string;
-  priority: 'P0' | 'P1' | 'P2' | 'P3';
+  short_description: string; // Brief scope description
+  impact: string; // Business impact (e.g., "Reduced repetitive tasks")
+  core_technology: string; // Core technology used (e.g., "Predictive AI", "RPA + IDP")
+  difficulty: 1 | 2 | 3; // Technical difficulty (1: simple, 2: medium, 3: complex)
+  impact_score: 1 | 2 | 3; // Business impact score (1: minor, 2: significant, 3: critical)
+  priority: 'P0' | 'P1' | 'P2' | 'P3'; // Calculated from difficulty + impact_score
   origin: 'teams';
   suggested_labels: string[];
   assignee_suggestion: string;

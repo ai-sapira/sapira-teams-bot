@@ -40,7 +40,7 @@ export class AdaptiveCardsService {
                   items: [
                     {
                       type: "TextBlock",
-                      text: "🎫 Propuesta de Ticket",
+                      text: "🚀 Propuesta de Initiative",
                       weight: "Bolder",
                       size: "Medium",
                       color: "Accent"
@@ -56,7 +56,7 @@ export class AdaptiveCardsService {
           items: [
             {
               type: "TextBlock",
-              text: "He analizado nuestra conversación y preparé este ticket:",
+              text: "He analizado nuestra conversación y preparé esta initiative de automatización/IA:",
               wrap: true,
               size: "Small",
               color: "Default"
@@ -73,6 +73,26 @@ export class AdaptiveCardsService {
                 {
                   title: "**Título:**",
                   value: proposal.title
+                },
+                {
+                  title: "**Alcance:**",
+                  value: proposal.short_description
+                },
+                {
+                  title: "**Tecnología Core:**",
+                  value: proposal.core_technology
+                },
+                {
+                  title: "**Impacto:**",
+                  value: proposal.impact
+                },
+                {
+                  title: "**Complejidad:**",
+                  value: `${proposal.difficulty}/3 (${this.getDifficultyDescription(proposal.difficulty)})`
+                },
+                {
+                  title: "**Impacto Negocio:**",
+                  value: `${proposal.impact_score}/3 (${this.getImpactDescription(proposal.impact_score)})`
                 },
                 {
                   title: "**Prioridad:**",
@@ -125,7 +145,7 @@ export class AdaptiveCardsService {
       actions: [
         {
           type: "Action.Submit",
-          title: "✅ Crear ticket",
+          title: "✅ Crear initiative",
           style: "positive",
           data: {
             action: "confirm_ticket",
@@ -144,7 +164,7 @@ export class AdaptiveCardsService {
         },
         {
           type: "Action.Submit",
-          title: "❌ No crear ticket",
+          title: "❌ No crear initiative",
           data: {
             action: "cancel_ticket",
             conversation_id: conversationId
@@ -190,7 +210,7 @@ export class AdaptiveCardsService {
                   items: [
                     {
                       type: "TextBlock",
-                      text: "✅ Ticket Creado Exitosamente",
+                      text: "✅ Initiative Creada Exitosamente",
                       weight: "Bolder",
                       size: "Medium",
                       color: "Good"
@@ -208,7 +228,7 @@ export class AdaptiveCardsService {
               type: "FactSet",
               facts: [
                 {
-                  title: "**Número de ticket:**",
+                  title: "**Código:**",
                   value: ticketKey
                 },
                 {
@@ -217,7 +237,7 @@ export class AdaptiveCardsService {
                 },
                 {
                   title: "**Estado:**",
-                  value: "En triage - Pendiente de revisión"
+                  value: "En triage - Pendiente de revisión por SAP"
                 }
               ]
             }
@@ -228,7 +248,7 @@ export class AdaptiveCardsService {
           items: [
             {
               type: "TextBlock",
-              text: "El equipo de soporte revisará tu ticket y te contactará si necesita información adicional.",
+              text: "El equipo SAP revisará tu initiative y te contactará si necesita información adicional.",
               wrap: true,
               size: "Small"
             }
@@ -238,7 +258,7 @@ export class AdaptiveCardsService {
       actions: [
         {
           type: "Action.OpenUrl",
-          title: "🔗 Ver ticket completo",
+          title: "🔗 Ver initiative completa",
           url: ticketUrl
         }
       ]
@@ -281,7 +301,7 @@ export class AdaptiveCardsService {
                   items: [
                     {
                       type: "TextBlock",
-                      text: "❌ Error al Crear Ticket",
+                      text: "❌ Error al Crear Initiative",
                       weight: "Bolder",
                       size: "Medium",
                       color: "Attention"
@@ -297,7 +317,7 @@ export class AdaptiveCardsService {
           items: [
             {
               type: "TextBlock",
-              text: "Lo siento, hubo un problema al crear tu ticket:",
+              text: "Lo siento, hubo un problema al crear tu initiative:",
               wrap: true,
               size: "Small"
             },
@@ -371,7 +391,7 @@ export class AdaptiveCardsService {
                     },
                     {
                       type: "TextBlock",
-                      text: "Tu asistente de soporte técnico",
+                      text: "Tu asistente para initiatives de IA y automatización",
                       size: "Small",
                       color: "Accent"
                     }
@@ -386,7 +406,7 @@ export class AdaptiveCardsService {
           items: [
             {
               type: "TextBlock",
-              text: "Estoy aquí para ayudarte con cualquier problema técnico. Solo cuéntame qué está pasando y te ayudo a crear un ticket para resolverlo rápidamente.",
+              text: "Estoy aquí para ayudarte a proponer y gestionar initiatives de automatización e inteligencia artificial en Gonvarri. Cuéntame tu idea y te ayudo a crear una initiative estructurada.",
               wrap: true,
               size: "Small"
             }
@@ -397,13 +417,13 @@ export class AdaptiveCardsService {
           items: [
             {
               type: "TextBlock",
-              text: "**Ejemplos de cosas que puedo ayudarte:**",
+              text: "**Ejemplos de initiatives que puedo ayudarte:**",
               weight: "Bolder",
               size: "Small"
             },
             {
               type: "TextBlock",
-              text: "• Problemas de login o acceso\n• Errores en aplicaciones\n• Lentitud o problemas de rendimiento\n• Solicitudes de nuevas funcionalidades",
+              text: "• Automatización de procesos con RPA\n• Asistentes virtuales con GenAI\n• Detección y predicciones con IA\n• Análisis avanzado de datos\n• Procesamiento inteligente de documentos",
               wrap: true,
               size: "Small"
             }
@@ -420,11 +440,29 @@ export class AdaptiveCardsService {
    */
   private static getPriorityDescription(priority: string): string {
     switch (priority) {
-      case 'P0': return '(Crítico - Sistema caído)';
-      case 'P1': return '(Alto - Funcionalidad importante)';
-      case 'P2': return '(Medio - Afecta trabajo)';
-      case 'P3': return '(Bajo - Mejora/consulta)';
+      case 'P0': return '(Crítica - Impacto máximo)';
+      case 'P1': return '(Alta - Impacto significativo)';
+      case 'P2': return '(Media - Impacto moderado)';
+      case 'P3': return '(Baja - Mejora menor)';
       default: return '';
+    }
+  }
+
+  private static getDifficultyDescription(difficulty: number): string {
+    switch (difficulty) {
+      case 1: return 'Simple';
+      case 2: return 'Media';
+      case 3: return 'Compleja';
+      default: return 'Por determinar';
+    }
+  }
+
+  private static getImpactDescription(impact: number): string {
+    switch (impact) {
+      case 1: return 'Menor';
+      case 2: return 'Significativo';
+      case 3: return 'Crítico';
+      default: return 'Por determinar';
     }
   }
 

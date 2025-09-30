@@ -1,0 +1,49 @@
+feat: Actualizar bot Sapira para initiatives de automatización/IA Gonvarri
+
+CAMBIOS PRINCIPALES:
+
+🤖 Prompts del Agente:
+- Actualizado de "soporte técnico" a "initiatives de IA y automatización"
+- Preguntas enfocadas en: tecnología, impacto en negocio, complejidad
+- Genera propuestas estructuradas para Gonvarri
+
+📊 Nuevos Campos en TicketProposal:
+- short_description: Descripción breve del alcance
+- impact: Impacto en el negocio
+- core_technology: Tecnología core utilizada
+- difficulty: Complejidad técnica (1-3)
+- impact_score: Impacto en negocio (1-3)
+
+🎯 Cálculo Automático de Prioridad:
+- difficulty + impact_score = prioridad
+- 6 puntos → P0 (Crítica)
+- 5 puntos → P1 (Alta)
+- 3-4 puntos → P2 (Media)
+- 2 puntos → P3 (Baja)
+
+💡 Tecnologías que Reconoce:
+- GenAI (Chatbot, Copilot, Translation)
+- Predictive AI
+- RPA (Robotic Process Automation)
+- IDP (Intelligent Document Processing)
+- Advanced Analytics
+- Combinaciones: "RPA + IDP", "GenAI + Analytics"
+
+📝 Archivos Modificados:
+- lib/gemini-service.js: Prompts actualizados para Gonvarri
+- lib/conversation-manager.js: Inclusión de nuevos campos
+- bot/types.ts: Tipos actualizados
+- bot/gemini.service.ts: Lógica actualizada
+- bot/ticket-creation.service.ts: Creación con nuevos campos
+- bot/adaptive-cards.ts: UI para initiatives
+
+TESTING:
+- ✅ Tipos validados
+- ✅ Prompts probados
+- ✅ Cálculo de prioridad verificado
+
+EJEMPLOS DE USO:
+1. FraudFinder AI (P0): IDP + Predictive AI, difficulty=3, impact=3
+2. Agile Pricing (P1): Predictive AI, difficulty=2, impact=3
+
+Co-authored-by: Sapira AI Agent

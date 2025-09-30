@@ -16,7 +16,7 @@ export class TicketCreationService {
     proposal: TicketProposal
   ): Promise<{ ticket_key: string; ticket_url: string }> {
     try {
-      // Convert conversation to TeamsConversationData format
+      // Convert conversation to TeamsConversationData format with Gonvarri fields
       const teamsData: TeamsConversationData = {
         conversation_id: conversation.id,
         conversation_url: `https://teams.microsoft.com/l/chat/0/0?users=${conversation.userId}`,
@@ -28,9 +28,15 @@ export class TicketCreationService {
         })),
         ai_analysis: {
           summary: proposal.description,
+          short_description: proposal.short_description,
+          impact: proposal.impact,
+          core_technology: proposal.core_technology,
+          difficulty: proposal.difficulty,
+          impact_score: proposal.impact_score,
           priority: proposal.priority,
           suggested_labels: proposal.suggested_labels,
-          key_points: this.extractKeyPoints(conversation.getHistory())
+          key_points: this.extractKeyPoints(conversation.getHistory()),
+          suggested_assignee: proposal.assignee_suggestion
         }
       };
 
