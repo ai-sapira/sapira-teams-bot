@@ -206,10 +206,32 @@ ${proposal.description}
       
       if (feedback.action === 'confirm') {
         try {
+          // Build conversation reference for proactive messaging
+          const conversationReference = {
+            serviceUrl: activity.serviceUrl,
+            channelId: activity.channelId,
+            conversation: {
+              id: activity.conversation.id,
+              isGroup: activity.conversation.isGroup,
+              conversationType: activity.conversation.conversationType,
+              tenantId: activity.conversation.tenantId
+            },
+            user: {
+              id: activity.from.id,
+              name: activity.from.name,
+              aadObjectId: activity.from.aadObjectId
+            },
+            bot: {
+              id: activity.recipient?.id || `28:${process.env.MICROSOFT_APP_ID}`,
+              name: 'Sapira Soporte'
+            }
+          };
+          
           // Crear ticket
           const result = await getTicketService().createTicketFromConversation(
             conversation,
-            conversation.ticketProposal
+            conversation.ticketProposal,
+            conversationReference
           );
           
           responseText = `🎉 ¡Perfecto! Tu ticket **${result.ticket_key}** ha sido creado exitosamente.
