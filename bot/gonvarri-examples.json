@@ -1,0 +1,30 @@
+[
+  {
+    "key": "GON-6",
+    "title": "Agile pricing",
+    "short_description": "AI for pricing and discount margins",
+    "impact": "Reduced repetitive tasks",
+    "core_technology": "Predictive AI",
+    "business_unit": "Finance",
+    "project": "Pricing",
+    "difficulty": 2,
+    "impact_score": 3,
+    "priority": "P1",
+    "description": "**Business Unit:** Finance\n**Project:** Pricing\n\nAI for pricing and discount margins\n\n**Impact:** Reduced repetitive tasks\n**Core Technology:** Predictive AI",
+    "context": "Ejemplo de initiative de complejidad media (2) con alto impacto (3), resultando en prioridad P1. Utiliza IA predictiva para automatizar decisiones de pricing."
+  },
+  {
+    "key": "GON-50",
+    "title": "FraudFinder AI",
+    "short_description": "Fraudulent transactions detection",
+    "impact": "Reduce time on investigations",
+    "core_technology": "IDP + Predictive AI",
+    "business_unit": "Finance",
+    "project": "Invoicing",
+    "difficulty": 3,
+    "impact_score": 3,
+    "priority": "P0",
+    "description": "**Business Unit:** Finance\n**Project:** Invoicing\n\nFraudulent transactions detection\n\n**Impact:** Reduce time on investigations\n**Core Technology:** IDP + Predictive AI",
+    "context": "Ejemplo de initiative de alta complejidad (3) con alto impacto crítico (3), resultando en prioridad P0. Combina IDP (Intelligent Document Processing) con IA Predictiva para detectar fraude."
+  }
+]
