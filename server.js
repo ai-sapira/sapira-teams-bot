@@ -174,28 +174,88 @@ app.post('/api/messages', (req, res) => {
     // Añadir mensaje del usuario
     conversation.addMessage(activity.text, 'user');
     console.log('💬 User message added to conversation');
+    
+    // ⭐ NUEVO: Detectar si conversación ya está completada
+    if (conversation.state === 'completed') {
+      const lowerText = activity.text.toLowerCase().trim();
+      const newConversationKeywords = [
+        'nueva idea', 'otro problema', 'otra cosa', 'nuevo ticket', 
+        'hola', 'buenas', 'hey', 'tengo otra idea', 'tengo un problema',
+        'otra iniciativa', 'otra propuesta'
+      ];
+      
+      const isStartingNew = newConversationKeywords.some(kw => lowerText.includes(kw));
+      
+      if (isStartingNew) {
+        console.log('🔄 Starting new conversation - resetting state');
+        
+        // Resetear conversación pero mantener info del usuario
+        const key = `${conversationId}:${userId}`;
+        conversations.delete(key);
+        
+        // Crear nueva conversación limpia
+        const newConversation = getOrCreateConversation(
+          conversationId,
+          userId,
+          userName,
+          userEmail
+        );
+        
+        // Agregar el mensaje inicial
+        newConversation.addMessage(activity.text, 'user');
+        
+        // Responder con bienvenida
+        const responseText = await getGeminiService().continueConversation(newConversation);
+        newConversation.addMessage(responseText, 'bot');
+        
+        await context.sendActivity({ type: 'message', text: responseText });
+        console.log('✅ New conversation started');
+        return; // Salir del flujo principal
+      } else {
+        // Si no está empezando de nuevo, recordarle que ya completó
+        await context.sendActivity({ 
+          type: 'message', 
+          text: 'Ya completamos tu ticket anterior. Si tienes otra idea o problema, dime "nueva idea" o "tengo otro problema" y empezamos de cero.' 
+        });
+        console.log('✅ Reminded user to start new conversation');
+        return;
+      }
+    }
+    
+    // Detectar si es el primer mensaje (conversación nueva)
+    const isFirstMessage = conversation.messages.length === 1;
 
     // Decidir si crear ticket o continuar conversación
     const shouldCreateTicket = await getGeminiService().shouldCreateTicket(conversation);
     
     let responseText = '';
     
-    if (shouldCreateTicket && conversation.state !== 'awaiting_confirmation') {
+    // Si es el primer mensaje, dar bienvenida natural
+    if (isFirstMessage && !shouldCreateTicket) {
+      // Usar Gemini para respuesta inicial natural
+      responseText = await getGeminiService().continueConversation(conversation);
+      
+    } else if (shouldCreateTicket && conversation.state !== 'awaiting_confirmation') {
       // Generar propuesta de ticket
       const proposal = await getGeminiService().generateTicketProposal(conversation);
       conversation.setTicketProposal(proposal);
       
-      responseText = `He analizado tu problema y preparé este ticket:
+      // Presentar propuesta de forma más conversacional
+      const techInfo = proposal.core_technology ? `usando ${proposal.core_technology}` : '';
+      const labels = proposal.suggested_labels && proposal.suggested_labels.length > 0 
+        ? `\n🏷️ Etiquetas: ${proposal.suggested_labels.join(', ')}`
+        : '';
+      
+      responseText = `Vale, creo que tengo suficiente info. Te preparo una propuesta:
 
 📋 **${proposal.title}**
-🔍 Prioridad: ${proposal.priority}
-👥 Equipo: ${proposal.assignee_suggestion}
-🏷️ Etiquetas: ${proposal.suggested_labels.join(', ')}
 
-📝 **Descripción:**
-${proposal.description}
+${proposal.short_description || proposal.description}${techInfo ? ` ${techInfo}` : ''}
 
-¿Te parece correcto? Responde "sí" para crear el ticket o "no" si quieres hacer cambios.`;
+🎯 Prioridad que sugiero: **${proposal.priority}** 
+👥 Esto creo que encajaría bien con: ${proposal.assignee_suggestion}${labels}
+
+¿Qué te parece? Si te vale, la creo ahora mismo. Si quieres cambiar algo, dime.`;
       
     } else if (conversation.isWaitingForConfirmation()) {
       // Analizar respuesta del usuario
@@ -234,23 +294,37 @@ ${proposal.description}
             conversationReference
           );
           
-          responseText = `🎉 ¡Perfecto! Tu ticket **${result.ticket_key}** ha sido creado exitosamente.
+          responseText = `🎉 ¡Listo! Ya está creado el ticket **${result.ticket_key}**.
 
-🔗 Ver ticket: ${result.ticket_url}
+Puedes verlo aquí: ${result.ticket_url}
 
-El equipo de soporte lo revisará y te contactará si necesita información adicional.`;
+El equipo responsable lo revisará y te mantendrá informado. Si tienes otra idea o problema, solo dime "nueva idea" o "tengo otro problema".`;
           
           conversation.setState('completed');
           
+          // Limpiar la conversación del Map después de 2 minutos
+          setTimeout(() => {
+            const key = `${conversationId}:${userId}`;
+            conversations.delete(key);
+            console.log('🧹 Conversation cleaned:', key);
+          }, 120000); // 2 minutos
+          
         } catch (error) {
           console.error('Error creating ticket:', error);
-          responseText = 'Lo siento, hubo un error al crear el ticket. ¿Puedes intentarlo de nuevo?';
+          responseText = 'Uy, algo ha fallado al crear el ticket. ¿Probamos de nuevo en un momento?';
         }
-      } else if (feedback.action === 'cancel') {
-        responseText = 'Entendido, no se creará el ticket. Si necesitas ayuda en el futuro, no dudes en escribirme.';
+      } else if (feedback.action === 'reject') {
+        // Usuario rechaza la propuesta
+        responseText = feedback.natural_response || 'Entendido, lo dejamos. Si más adelante quieres retomarlo, aquí estaré.';
         conversation.setState('completed');
+      } else if (feedback.action === 'modify') {
+        // Usuario quiere hacer cambios significativos
+        responseText = feedback.natural_response || '¿Qué te gustaría cambiar de la propuesta?';
+        // Volver a estado activo para recopilar más info
+        conversation.setState('active');
       } else {
-        responseText = feedback.followUpQuestion || '¿Qué te gustaría cambiar del ticket propuesto?';
+        // unclear o cualquier otro caso
+        responseText = feedback.natural_response || '¿Te vale la propuesta así o prefieres cambiar algo?';
       }
       
     } else {
