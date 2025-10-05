@@ -170,13 +170,19 @@ app.post('/api/messages', (req, res) => {
       userName,
       userEmail
     );
+    
+    const conversationKey = `${conversationId}:${userId}`;
+    console.log('🔑 Conversation key:', conversationKey);
+    console.log('📦 Conversations in memory:', conversations.size);
+    console.log('📝 Messages before adding:', conversation.messages.length);
 
     // Añadir mensaje del usuario
     conversation.addMessage(activity.text, 'user');
     console.log('💬 User message added to conversation:', {
       messageCount: conversation.messages.length,
       state: conversation.state,
-      hasProposal: !!conversation.ticketProposal
+      hasProposal: !!conversation.ticketProposal,
+      fullHistory: conversation.getHistory()
     });
     
     // ⭐ NUEVO: Detectar si conversación ya está completada
