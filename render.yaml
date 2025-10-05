@@ -17,3 +17,8 @@ services:
         value: SingleTenant
       - key: GEMINI_API_KEY
         sync: false
+      - key: SAPIRA_API_URL
+        value: https://v0-internal-os-build.vercel.app
+
+
+
