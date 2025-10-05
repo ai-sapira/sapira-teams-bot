@@ -232,8 +232,18 @@ app.post('/api/messages', (req, res) => {
     
     // Si es el primer mensaje, dar bienvenida natural
     if (isFirstMessage && !shouldCreateTicket) {
-      // Usar Gemini para respuesta inicial natural
-      responseText = await getGeminiService().continueConversation(conversation);
+      // Detectar si el primer mensaje ya tiene contenido útil
+      const firstMessageText = activity.text.toLowerCase().trim();
+      const isJustGreeting = ['hola', 'hey', 'buenas', 'buenos dias', 'buenas tardes'].includes(firstMessageText);
+      const isNewIdeaKeyword = ['nueva idea', 'otro problema', 'otra cosa'].includes(firstMessageText);
+      
+      // Si es solo un saludo o keyword, responder con bienvenida
+      if (isJustGreeting || isNewIdeaKeyword) {
+        responseText = "¡Hola! ¿En qué puedo ayudarte hoy?";
+      } else {
+        // Si ya viene con contenido, usar Gemini para responder específicamente
+        responseText = await getGeminiService().continueConversation(conversation);
+      }
       
     } else if (shouldCreateTicket && conversation.state !== 'awaiting_confirmation') {
       // Generar propuesta de ticket
