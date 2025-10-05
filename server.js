@@ -173,7 +173,11 @@ app.post('/api/messages', (req, res) => {
 
     // Añadir mensaje del usuario
     conversation.addMessage(activity.text, 'user');
-    console.log('💬 User message added to conversation');
+    console.log('💬 User message added to conversation:', {
+      messageCount: conversation.messages.length,
+      state: conversation.state,
+      hasProposal: !!conversation.ticketProposal
+    });
     
     // ⭐ NUEVO: Detectar si conversación ya está completada
     if (conversation.state === 'completed') {
