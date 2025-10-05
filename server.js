@@ -349,7 +349,17 @@ El equipo responsable lo revisará y te mantendrá informado. Si tienes otra ide
       
     } else {
       // Continuar conversación normal
-      responseText = await getGeminiService().continueConversation(conversation);
+      console.log('🤖 Calling Gemini continueConversation...');
+      try {
+        responseText = await getGeminiService().continueConversation(conversation);
+        console.log('✅ Gemini responded:', {
+          length: responseText.length,
+          preview: responseText.substring(0, 100)
+        });
+      } catch (error) {
+        console.error('❌ Gemini error:', error);
+        responseText = "Lo siento, tengo un problema técnico. ¿Puedes repetir lo último?";
+      }
     }
 
     // Añadir respuesta del bot a la conversación
